@@ -1,0 +1,238 @@
+syntax = "proto3";
+
+option csharp_namespace = "Backend.Protos";
+
+package encuestas;
+
+service AuthService {
+  rpc Login (LoginRequest) returns (LoginReply);
+}
+
+service EncuestaService {
+  rpc GetSurveys (SurveyListRequest) returns (SurveyListReply);
+  rpc GetSurveyDetails (SurveyDetailsRequest) returns (SurveyDetailsReply);
+  rpc SubmitSurveyResponse (SubmitResponseRequest) returns (SubmitResponseReply);
+  rpc CreateSurvey (CreateSurveyRequest) returns (CreateSurveyReply);
+}
+
+service CasosService {
+  rpc CreateCaso (CreateCasoRequest) returns (CreateCasoReply);
+  rpc GetCasos (CasoListRequest) returns (CasoListReply);
+  rpc UpdateCasoEstado (UpdateCasoEstadoRequest) returns (UpdateCasoEstadoReply);
+}
+
+service EstudianteService {
+  rpc UploadEstudiantesExcel (UploadExcelRequest) returns (UploadExcelReply);
+  rpc GetEstudiantes (EstudianteListRequest) returns (EstudianteListReply);
+}
+
+service DashboardService {
+  rpc GetDashboard (DashboardRequest) returns (DashboardReply);
+}
+
+// Mensajes de Autenticación
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginReply {
+  bool success = 1;
+  string message = 2;
+  int32 user_id = 3;
+  string nombre = 4;
+  string apellido = 5;
+  string rol = 6;
+  string jornada = 7;
+  int32 estudiante_id = 8;
+  int32 colegio_id = 9;
+  string colegio_nombre = 10;
+}
+
+// Mensajes de Carga Masiva Excel de Estudiantes
+message UploadExcelRequest {
+  bytes file_bytes = 1;
+  string file_name = 2;
+  int32 colegio_id = 3;
+  int32 creado_por_id = 4;
+}
+
+message UploadExcelReply {
+  bool success = 1;
+  string message = 2;
+  int32 total_procesados = 3;
+  int32 creados_exitosos = 4;
+  int32 omitidos_duplicados = 5;
+  repeated string errores = 6;
+}
+
+message EstudianteListRequest {
+  int32 colegio_id = 1;
+  string jornada = 2;
+  string curso = 3;
+}
+
+message EstudianteMessage {
+  int32 id = 1;
+  int32 usuario_id = 2;
+  string nombre = 3;
+  string apellido = 4;
+  string tipo_identificacion = 5;
+  string numero_identificacion = 6;
+  string email = 7;
+  string telefono = 8;
+  string curso = 9;
+  string jornada = 10;
+  string sexo = 11;
+  string eps = 12;
+  string direccion = 13;
+}
+
+message EstudianteListReply {
+  repeated EstudianteMessage estudiantes = 1;
+}
+
+// Mensajes de Encuestas
+message SurveyListRequest {
+  int32 user_id = 1;
+  int32 colegio_id = 2;
+}
+
+message SurveyMessage {
+  int32 id = 1;
+  string titulo = 2;
+  string descripcion = 3;
+  string fecha_creacion = 4;
+}
+
+message SurveyListReply {
+  repeated SurveyMessage encuestas = 1;
+}
+
+message SurveyDetailsRequest {
+  int32 encuesta_id = 1;
+}
+
+message OpcionMessage {
+  int32 id = 1;
+  string texto = 2;
+}
+
+message PreguntaMessage {
+  int32 id = 1;
+  string texto = 2;
+  string tipo_respuesta = 3; // "SeleccionUnica" o "TextoAbierto"
+  repeated OpcionMessage opciones = 4;
+}
+
+message SurveyDetailsReply {
+  int32 id = 1;
+  string titulo = 2;
+  string descripcion = 3;
+  repeated PreguntaMessage preguntas = 4;
+}
+
+message PreguntaRespuestaInput {
+  int32 pregunta_id = 1;
+  string respuesta_texto = 2;
+  int32 opcion_seleccionada_id = 3; // 0 si es texto abierto
+}
+
+message SubmitResponseRequest {
+  int32 encuesta_id = 1;
+  int32 estudiante_id = 2;
+  repeated PreguntaRespuestaInput respuestas = 3;
+}
+
+message SubmitResponseReply {
+  bool success = 1;
+  string message = 2;
+}
+
+message PreguntaInput {
+  string texto = 1;
+  string tipo_respuesta = 2; // "SeleccionUnica" o "TextoAbierto"
+  repeated string opciones = 3; // Solo para SeleccionUnica
+}
+
+message CreateSurveyRequest {
+  string titulo = 1;
+  string descripcion = 2;
+  int32 creado_por_id = 3;
+  int32 colegio_id = 4;
+  repeated PreguntaInput preguntas = 5;
+}
+
+message CreateSurveyReply {
+  bool success = 1;
+  string message = 2;
+  int32 encuesta_id = 3;
+}
+
+// Mensajes de Casos
+message CreateCasoRequest {
+  int32 estudiante_id = 1;
+  int32 creado_por_id = 2;
+  int32 colegio_id = 3;
+  string tipo = 4; // "Disciplinario" o "Convivencia"
+  string descripcion = 5;
+  bool requiere_piar = 6;
+  bool requiere_dua = 7;
+  string discapacidades = 8;
+}
+
+message CreateCasoReply {
+  bool success = 1;
+  string message = 2;
+  int32 caso_id = 3;
+}
+
+message CasoListRequest {
+  int32 user_id = 1;
+  string rol = 2;
+  int32 colegio_id = 3;
+}
+
+message CasoMessage {
+  int32 id = 1;
+  string estudiante_nombre = 2;
+  string estudiante_curso = 3;
+  string creado_por_nombre = 4;
+  string tipo = 5;
+  string descripcion = 6;
+  bool requiere_piar = 7;
+  bool requiere_dua = 8;
+  string discapacidades = 9;
+  string fecha_creacion = 10;
+  string estado = 11;
+}
+
+message CasoListReply {
+  repeated CasoMessage casos = 1;
+}
+
+message UpdateCasoEstadoRequest {
+  int32 caso_id = 1;
+  string nuevo_estado = 2; // "Iniciado", "EnProceso", "Cerrado"
+}
+
+message UpdateCasoEstadoReply {
+  bool success = 1;
+  string message = 2;
+}
+
+// Mensajes de Dashboard
+message DashboardRequest {
+  int32 user_id = 1;
+  string rol = 2;
+  int32 colegio_id = 3;
+}
+
+message DashboardReply {
+  int32 total_estudiantes = 1;
+  int32 casos_iniciados = 2;
+  int32 casos_en_proceso = 3;
+  int32 casos_cerrados = 4;
+  int32 total_encuestas = 5;
+  int32 total_respuestas = 6;
+}
