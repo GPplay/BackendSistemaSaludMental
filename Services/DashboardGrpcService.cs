@@ -16,6 +16,31 @@ namespace Backend.Services
 
         public override async Task<DashboardReply> GetDashboard(DashboardRequest request, ServerCallContext context)
         {
+            if (request.Rol == "SUPER_ADMIN")
+            {
+                // Métricas globales cruzadas entre todos los colegios
+                int globalEstudiantes = await _dbContext.Estudiantes.CountAsync();
+                int globalEncuestas = await _dbContext.Encuestas.CountAsync();
+                int globalRespuestas = await _dbContext.RespuestasEncuestas.CountAsync();
+                int globalCasosIniciados = await _dbContext.RegistrosCasos.CountAsync(c => c.Estado == "Iniciado");
+                int globalCasosEnProceso = await _dbContext.RegistrosCasos.CountAsync(c => c.Estado == "EnProceso");
+                int globalCasosCerrados = await _dbContext.RegistrosCasos.CountAsync(c => c.Estado == "Cerrado");
+                int globalColegios = await _dbContext.Colegios.CountAsync();
+                int globalUsuarios = await _dbContext.Usuarios.CountAsync();
+
+                return new DashboardReply
+                {
+                    TotalEstudiantes = globalEstudiantes,
+                    CasosIniciados = globalCasosIniciados,
+                    CasosEnProceso = globalCasosEnProceso,
+                    CasosCerrados = globalCasosCerrados,
+                    TotalEncuestas = globalEncuestas,
+                    TotalRespuestas = globalRespuestas,
+                    TotalColegios = globalColegios,
+                    TotalUsuarios = globalUsuarios
+                };
+            }
+
             int colegioId = request.ColegioId > 0 ? request.ColegioId : 1;
 
             int totalEstudiantes = await _dbContext.Estudiantes.CountAsync(e => e.ColegioId == colegioId);
@@ -54,7 +79,9 @@ namespace Backend.Services
                 CasosEnProceso = casosEnProceso,
                 CasosCerrados = casosCerrados,
                 TotalEncuestas = totalEncuestas,
-                TotalRespuestas = totalRespuestas
+                TotalRespuestas = totalRespuestas,
+                TotalColegios = 1,
+                TotalUsuarios = await _dbContext.Usuarios.CountAsync(u => u.ColegioId == colegioId)
             };
         }
     }

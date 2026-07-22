@@ -17,10 +17,11 @@ namespace Backend.Services
         public override async Task<LoginReply> Login(LoginRequest request, ServerCallContext context)
         {
             var usuario = await _dbContext.Usuarios
+                .Include(u => u.Persona)
                 .Include(u => u.Colegio)
-                .FirstOrDefaultAsync(u => u.Username == request.Username && u.PasswordHash == request.Password);
+                .FirstOrDefaultAsync(u => u.Username == request.Username);
 
-            if (usuario == null)
+            if (usuario == null || !PasswordHasher.VerifyPassword(usuario.PasswordHash, request.Password))
             {
                 return new LoginReply
                 {

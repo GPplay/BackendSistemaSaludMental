@@ -62,7 +62,9 @@ namespace Backend.Services
             IQueryable<RegistroCaso> query = _dbContext.RegistrosCasos
                 .Include(r => r.Estudiante)
                 .ThenInclude(e => e.Usuario)
+                .ThenInclude(u => u.Persona)
                 .Include(r => r.CreadoPorUsuario)
+                .ThenInclude(u => u.Persona)
                 .Where(r => r.ColegioId == colegioId);
 
             if (request.Rol == "Estudiante")

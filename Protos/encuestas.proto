@@ -13,6 +13,8 @@ service EncuestaService {
   rpc GetSurveyDetails (SurveyDetailsRequest) returns (SurveyDetailsReply);
   rpc SubmitSurveyResponse (SubmitResponseRequest) returns (SubmitResponseReply);
   rpc CreateSurvey (CreateSurveyRequest) returns (CreateSurveyReply);
+  rpc GetSurveyAnalytics (SurveyAnalyticsRequest) returns (SurveyAnalyticsReply);
+  rpc StreamSurveyAnalytics (SurveyAnalyticsRequest) returns (stream SurveyAnalyticsReply);
 }
 
 service CasosService {
@@ -30,6 +32,17 @@ service DashboardService {
   rpc GetDashboard (DashboardRequest) returns (DashboardReply);
 }
 
+service ColegioService {
+  rpc GetColegios (GetColegiosRequest) returns (GetColegiosReply);
+  rpc CreateColegio (CreateColegioRequest) returns (CreateColegioReply);
+}
+
+service AdminService {
+  rpc GetAllUsers (GetAllUsersRequest) returns (GetAllUsersReply);
+  rpc ResetUserPassword (ResetUserPasswordRequest) returns (ResetUserPasswordReply);
+  rpc UpdateUserProfile (UpdateUserProfileRequest) returns (UpdateUserProfileReply);
+}
+
 // Mensajes de Autenticación
 message LoginRequest {
   string username = 1;
@@ -42,11 +55,86 @@ message LoginReply {
   int32 user_id = 3;
   string nombre = 4;
   string apellido = 5;
-  string rol = 6;
+  string rol = 6; // SUPER_ADMIN, Rector, Orientador, Coordinador, Estudiante
   string jornada = 7;
   int32 estudiante_id = 8;
   int32 colegio_id = 9;
   string colegio_nombre = 10;
+}
+
+// Mensajes de Colegios (SaaS SuperAdmin)
+message GetColegiosRequest {
+  int32 user_id = 1;
+}
+
+message ColegioMessage {
+  int32 id = 1;
+  string nombre = 2;
+  string nit = 3;
+  string codigo_dane = 4;
+  string direccion = 5;
+  string telefono = 6;
+  string email_contacto = 7;
+  string fecha_registro = 8;
+  bool activo = 9;
+  int32 total_estudiantes = 10;
+  int32 total_usuarios = 11;
+}
+
+message GetColegiosReply {
+  repeated ColegioMessage colegios = 1;
+}
+
+message CreateColegioRequest {
+  string nombre = 1;
+  string nit = 2;
+  string codigo_dane = 3;
+  string direccion = 4;
+  string telefono = 5;
+  string email_contacto = 6;
+}
+
+message CreateColegioReply {
+  bool success = 1;
+  string message = 2;
+  int32 colegio_id = 3;
+}
+
+// Mensajes de Administración Global de Usuarios (SUPER_ADMIN)
+message GetAllUsersRequest {
+  int32 super_admin_id = 1;
+  int32 colegio_id_filter = 2; // 0 para todos
+}
+
+message UserDetailMessage {
+  int32 id = 1;
+  int32 colegio_id = 2;
+  string colegio_nombre = 3;
+  string username = 4;
+  string password_hash = 5; // Visible para el SUPER_ADMIN
+  string nombre = 6;
+  string apellido = 7;
+  string email = 8;
+  string telefono = 9;
+  string tipo_identificacion = 10;
+  string numero_identificacion = 11;
+  string rol = 12;
+  string jornada = 13;
+}
+
+message GetAllUsersReply {
+  repeated UserDetailMessage usuarios = 1;
+}
+
+message ResetUserPasswordRequest {
+  int32 super_admin_id = 1;
+  int32 target_user_id = 2;
+  string new_password = 3;
+}
+
+message ResetUserPasswordReply {
+  bool success = 1;
+  string message = 2;
 }
 
 // Mensajes de Carga Masiva Excel de Estudiantes
@@ -103,6 +191,7 @@ message SurveyMessage {
   string titulo = 2;
   string descripcion = 3;
   string fecha_creacion = 4;
+  int32 total_respuestas = 5;
 }
 
 message SurveyListReply {
@@ -121,8 +210,11 @@ message OpcionMessage {
 message PreguntaMessage {
   int32 id = 1;
   string texto = 2;
-  string tipo_respuesta = 3; // "SeleccionUnica" o "TextoAbierto"
-  repeated OpcionMessage opciones = 4;
+  string tipo_respuesta = 3; // SeleccionUnica, TextoAbierto, CorreoElectronico, NumeroTelefono, EscalaNumerica
+  bool es_obligatoria = 4;
+  string restriccion = 5;
+  string prefijo_pais = 6; // +57, +1, +52, +34, etc.
+  repeated OpcionMessage opciones = 7;
 }
 
 message SurveyDetailsReply {
@@ -135,7 +227,7 @@ message SurveyDetailsReply {
 message PreguntaRespuestaInput {
   int32 pregunta_id = 1;
   string respuesta_texto = 2;
-  int32 opcion_seleccionada_id = 3; // 0 si es texto abierto
+  int32 opcion_seleccionada_id = 3;
 }
 
 message SubmitResponseRequest {
@@ -151,8 +243,11 @@ message SubmitResponseReply {
 
 message PreguntaInput {
   string texto = 1;
-  string tipo_respuesta = 2; // "SeleccionUnica" o "TextoAbierto"
-  repeated string opciones = 3; // Solo para SeleccionUnica
+  string tipo_respuesta = 2;
+  bool es_obligatoria = 3;
+  string restriccion = 4;
+  string prefijo_pais = 5;
+  repeated string opciones = 6;
 }
 
 message CreateSurveyRequest {
@@ -169,12 +264,43 @@ message CreateSurveyReply {
   int32 encuesta_id = 3;
 }
 
+// Mensajes de Analítica de Respuestas de Encuestas (Dashboard de Respuestas)
+message SurveyAnalyticsRequest {
+  int32 encuesta_id = 1;
+}
+
+message OpcionStatMessage {
+  int32 opcion_id = 1;
+  string texto_opcion = 2;
+  int32 cantidad_votos = 3;
+  double porcentaje = 4;
+}
+
+message PreguntaAnalyticsMessage {
+  int32 pregunta_id = 1;
+  string texto_pregunta = 2;
+  string tipo_respuesta = 3;
+  bool es_obligatoria = 4;
+  string restriccion = 5;
+  string prefijo_pais = 6;
+  repeated OpcionStatMessage estadisticas_opciones = 7;
+  repeated string respuestas_texto = 8;
+}
+
+message SurveyAnalyticsReply {
+  int32 encuesta_id = 1;
+  string titulo = 2;
+  string descripcion = 3;
+  int32 total_respuestas = 4;
+  repeated PreguntaAnalyticsMessage preguntas_analitica = 5;
+}
+
 // Mensajes de Casos
 message CreateCasoRequest {
   int32 estudiante_id = 1;
   int32 creado_por_id = 2;
   int32 colegio_id = 3;
-  string tipo = 4; // "Disciplinario" o "Convivencia"
+  string tipo = 4;
   string descripcion = 5;
   bool requiere_piar = 6;
   bool requiere_dua = 7;
@@ -213,7 +339,7 @@ message CasoListReply {
 
 message UpdateCasoEstadoRequest {
   int32 caso_id = 1;
-  string nuevo_estado = 2; // "Iniciado", "EnProceso", "Cerrado"
+  string nuevo_estado = 2;
 }
 
 message UpdateCasoEstadoReply {
@@ -235,4 +361,20 @@ message DashboardReply {
   int32 casos_cerrados = 4;
   int32 total_encuestas = 5;
   int32 total_respuestas = 6;
+  int32 total_colegios = 7; // Para SUPER_ADMIN
+  int32 total_usuarios = 8;  // Para SUPER_ADMIN
+}
+
+// Mensajes de Actualización de Perfil de Usuario
+message UpdateUserProfileRequest {
+  int32 user_id = 1;
+  string nombre = 2;
+  string apellido = 3;
+  string email = 4;
+  string password = 5; // Opcional
+}
+
+message UpdateUserProfileReply {
+  bool success = 1;
+  string message = 2;
 }

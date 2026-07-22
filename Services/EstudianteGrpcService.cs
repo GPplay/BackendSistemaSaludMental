@@ -78,7 +78,10 @@ namespace Backend.Services
                         string numDoc = GetVal(row, colMap, "numeroidentificacion", "documento", "identificacion", "cedula", "tarjeta");
                         string tipoDoc = GetVal(row, colMap, "tipoidentificacion", "tipodoc", "tipo");
                         string email = GetVal(row, colMap, "email", "correo");
-                        string telefono = GetVal(row, colMap, "telefono", "celular");
+                        string telefonoEstudiante = GetVal(row, colMap, "telefonoestudiante", "telefono", "celular");
+                        string nombreAcudiente = GetVal(row, colMap, "nombreacudiente", "acudiente", "padre", "madre");
+                        string telefonoAcudiente = GetVal(row, colMap, "telefonoacudiente", "celularacudiente", "contactopadre");
+                        string parentescoAcudiente = GetVal(row, colMap, "parentescoacudiente", "parentesco");
                         string curso = GetVal(row, colMap, "curso", "grado");
                         string jornada = GetVal(row, colMap, "jornada");
                         string sexo = GetVal(row, colMap, "sexo", "genero");
@@ -113,18 +116,30 @@ namespace Backend.Services
                             fechaNacimiento = parsedDate;
                         }
 
-                        // Crear Usuario
+                        // 1. Crear Persona (Identidad Humana)
+                        var persona = new Persona
+                        {
+                            Nombre = nombre.Trim(),
+                            Apellido = apellido?.Trim() ?? "",
+                            TipoIdentificacion = tipoDoc.Trim(),
+                            NumeroIdentificacion = numDoc.Trim(),
+                            Email = !string.IsNullOrWhiteSpace(email) ? email.Trim() : $"{username}@estudiante.siae.edu.co",
+                            Telefono = telefonoEstudiante?.Trim() ?? "",
+                            Sexo = sexo?.Trim() ?? "No especificado",
+                            Direccion = direccion?.Trim() ?? "No registrada",
+                            FechaNacimiento = fechaNacimiento,
+                            LugarNacimiento = "No registrado"
+                        };
+
+                        _dbContext.Personas.Add(persona);
+                        await _dbContext.SaveChangesAsync();
+
                         var usuario = new Usuario
                         {
                             ColegioId = colegioId,
+                            PersonaId = persona.Id,
                             Username = username,
-                            PasswordHash = numDoc.Trim(), // Contraseña por defecto es el número de documento
-                            Nombre = nombre.Trim(),
-                            Apellido = apellido?.Trim() ?? "",
-                            Email = !string.IsNullOrWhiteSpace(email) ? email.Trim() : $"{username}@estudiante.siae.edu.co",
-                            Telefono = telefono?.Trim() ?? "",
-                            TipoIdentificacion = tipoDoc.Trim(),
-                            NumeroIdentificacion = numDoc.Trim(),
+                            PasswordHash = PasswordHasher.HashPassword(numDoc.Trim()), // Contraseña por defecto es el número de documento encriptado
                             Rol = "Estudiante",
                             Jornada = jornada.Trim()
                         };
@@ -132,17 +147,17 @@ namespace Backend.Services
                         _dbContext.Usuarios.Add(usuario);
                         await _dbContext.SaveChangesAsync();
 
-                        // Crear Estudiante vinculado
+                        // 3. Crear Estudiante vinculado con datos del Acudiente
                         var estudiante = new Estudiante
                         {
                             ColegioId = colegioId,
                             UsuarioId = usuario.Id,
+                            PersonaId = persona.Id,
                             Curso = curso.Trim(),
-                            LugarNacimiento = "No registrado",
-                            FechaNacimiento = fechaNacimiento,
-                            Sexo = sexo?.Trim() ?? "No especificado",
                             Eps = eps?.Trim() ?? "Sin asignación",
-                            Direccion = direccion?.Trim() ?? "No registrada"
+                            NombreAcudiente = nombreAcudiente?.Trim() ?? "No registrado",
+                            TelefonoAcudiente = telefonoAcudiente?.Trim() ?? "No registrado",
+                            ParentescoAcudiente = parentescoAcudiente?.Trim() ?? "Acudiente Legal"
                         };
 
                         _dbContext.Estudiantes.Add(estudiante);
