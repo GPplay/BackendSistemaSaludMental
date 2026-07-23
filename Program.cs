@@ -31,6 +31,8 @@ builder.Services.AddGrpc(options =>
     options.MaxSendMessageSize = 16 * 1024 * 1024;
 });
 
+builder.Services.AddGrpcReflection();
+
 var app = builder.Build();
 
 // Asegurar la creación de la base de datos y la inserción de datos iniciales con reintentos para soportar el arranque lento en Docker
@@ -73,6 +75,8 @@ app.MapGrpcService<EstudianteGrpcService>().EnableGrpcWeb().RequireCors("AllowAn
 app.MapGrpcService<DashboardGrpcService>().EnableGrpcWeb().RequireCors("AllowAngular");
 app.MapGrpcService<ColegioGrpcService>().EnableGrpcWeb().RequireCors("AllowAngular");
 app.MapGrpcService<AdminGrpcService>().EnableGrpcWeb().RequireCors("AllowAngular");
+
+app.MapGrpcReflectionService();
 
 app.MapGet("/proto", async (context) =>
 {
