@@ -47,7 +47,7 @@ namespace Backend.Controllers
                 query = query.Where(e => e.Usuario.Jornada == jornada);
             }
 
-            if (!string.IsNullOrWhiteSpace(curso))
+            if (!string.IsNullOrWhiteSpace(curso) && !string.Equals(curso, "Todos", StringComparison.OrdinalIgnoreCase))
             {
                 query = query.Where(e => e.Curso == curso);
             }
@@ -150,6 +150,19 @@ namespace Backend.Controllers
                         if (string.IsNullOrWhiteSpace(jornada)) jornada = "Mañana";
                         if (string.IsNullOrWhiteSpace(curso)) curso = "Sin Asignar";
 
+                        string normalizedCurso = curso.Trim().Replace(" ", "").ToUpperInvariant();
+                        bool cursoExiste = await _dbContext.Cursos.AnyAsync(c => c.ColegioId == colegioId && c.Nombre == normalizedCurso);
+                        if (!cursoExiste)
+                        {
+                            var nuevoCurso = new Curso
+                            {
+                                ColegioId = colegioId,
+                                Nombre = normalizedCurso
+                            };
+                            _dbContext.Cursos.Add(nuevoCurso);
+                            await _dbContext.SaveChangesAsync();
+                        }
+
                         string username = numDoc.Trim();
                         bool existe = await _dbContext.Usuarios
                             .AnyAsync(u => u.NumeroIdentificacion == numDoc || u.Username == username);
@@ -201,7 +214,7 @@ namespace Backend.Controllers
                             ColegioId = colegioId,
                             UsuarioId = usuario.Id,
                             PersonaId = persona.Id,
-                            Curso = curso.Trim(),
+                            Curso = normalizedCurso,
                             Eps = eps?.Trim() ?? "Sin asignación",
                             NombreAcudiente = nombreAcudiente?.Trim() ?? "No registrado",
                             TelefonoAcudiente = telefonoAcudiente?.Trim() ?? "No registrado",

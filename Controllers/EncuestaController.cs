@@ -148,6 +148,12 @@ namespace Backend.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateSurvey([FromBody] CreateSurveyDto dto)
         {
+            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (roleClaim == "SUPER_ADMIN")
+            {
+                return Forbid("El SUPER_ADMIN no tiene permitido crear encuestas para garantizar la transparencia de los datos.");
+            }
+
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var colegioIdClaim = User.FindFirst("ColegioId")?.Value;
 

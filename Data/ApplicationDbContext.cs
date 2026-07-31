@@ -13,6 +13,7 @@ namespace Backend.Data
         public DbSet<Persona> Personas { get; set; } = null!;
         public DbSet<Usuario> Usuarios { get; set; } = null!;
         public DbSet<Estudiante> Estudiantes { get; set; } = null!;
+        public DbSet<Curso> Cursos { get; set; } = null!;
         public DbSet<RegistroCaso> RegistrosCasos { get; set; } = null!;
         public DbSet<Encuesta> Encuestas { get; set; } = null!;
         public DbSet<Pregunta> Preguntas { get; set; } = null!;
@@ -50,6 +51,12 @@ namespace Backend.Data
                 .WithMany()
                 .HasForeignKey(e => e.ColegioId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Curso>()
+                .HasOne(c => c.Colegio)
+                .WithMany()
+                .HasForeignKey(c => c.ColegioId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Estudiante>()
                 .HasOne(e => e.Usuario)
@@ -148,7 +155,12 @@ namespace Backend.Data
                     Activo = true
                 }
             );
-
+            // Cursos por defecto
+            modelBuilder.Entity<Curso>().HasData(
+                new Curso { Id = 1, ColegioId = 1, Nombre = "10-A" },
+                new Curso { Id = 2, ColegioId = 1, Nombre = "11-A" },
+                new Curso { Id = 3, ColegioId = 1, Nombre = "11-B" }
+            );
             // 2. Personas (Identidades humanas desacopladas)
             modelBuilder.Entity<Persona>().HasData(
                 new Persona
