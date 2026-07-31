@@ -2,6 +2,9 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
 using Backend.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 
 // Registrar soporte de páginas de código (requerido por ExcelDataReader)
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -11,6 +14,64 @@ var builder = WebApplication.CreateBuilder(args);
 // Configurar Entity Framework con SQL Server
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Configurar Controladores REST
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+
+// Configurar Swagger UI con soporte para JWT Bearer
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "SIAE REST API",
+        Version = "v1",
+        Description = "API RESTful con autenticación JWT para el Sistema de Atención Integral Escolar (SIAE)"
+    });
+
+    // Definición de esquema de seguridad JWT Bearer
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Ingresa el token JWT en el formato: Bearer {tu_token_aqui}"
+    });
+
+    options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecuritySchemeReference("Bearer", doc),
+            new List<string>()
+        }
+    });
+});
+
+// Configurar Autenticación basada en JWT
+var key = Encoding.ASCII.GetBytes(JwtUtils.Secret);
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false; // Permitir desarrollo HTTP local
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = "SIAE_Backend",
+        ValidateAudience = true,
+        ValidAudience = "SIAE_Frontend",
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
 
 // Configurar CORS para permitir Angular
 builder.Services.AddCors(options =>
@@ -24,14 +85,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Configurar gRPC con límite de mensaje amplio para cargas masivas
-builder.Services.AddGrpc(options =>
-{
-    options.MaxReceiveMessageSize = 16 * 1024 * 1024;
-    options.MaxSendMessageSize = 16 * 1024 * 1024;
-});
 
-builder.Services.AddGrpcReflection();
 
 var app = builder.Build();
 
@@ -64,19 +118,22 @@ using (var scope = app.Services.CreateScope())
 app.UseRouting();
 app.UseCors("AllowAngular");
 
-// Habilitar gRPC-Web middleware
-app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
+// Habilitar Swagger UI
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "SIAE REST API v1");
+    options.RoutePrefix = "swagger";
+});
 
-// Registrar los endpoints de gRPC habilitados con gRPC-Web y CORS
-app.MapGrpcService<AuthGrpcService>().EnableGrpcWeb().RequireCors("AllowAngular");
-app.MapGrpcService<EncuestaGrpcService>().EnableGrpcWeb().RequireCors("AllowAngular");
-app.MapGrpcService<CasosGrpcService>().EnableGrpcWeb().RequireCors("AllowAngular");
-app.MapGrpcService<EstudianteGrpcService>().EnableGrpcWeb().RequireCors("AllowAngular");
-app.MapGrpcService<DashboardGrpcService>().EnableGrpcWeb().RequireCors("AllowAngular");
-app.MapGrpcService<ColegioGrpcService>().EnableGrpcWeb().RequireCors("AllowAngular");
-app.MapGrpcService<AdminGrpcService>().EnableGrpcWeb().RequireCors("AllowAngular");
+// Middleware de Autenticación y Autorización
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapGrpcReflectionService();
+// Mapear Controladores REST
+app.MapControllers();
+
+
 
 app.MapGet("/proto", async (context) =>
 {
@@ -243,11 +300,11 @@ app.MapGet("/", async (context) =>
     <div class=""portal-card"">
         <i class=""bx bx-cube-alt logo-icon""></i>
         <h1>SIAE Backend</h1>
-        <p class=""subtitle"">Motor gRPC / gRPC-Web para Salud Mental Escolar</p>
+        <p class=""subtitle"">API RESTful con JWT para Salud Mental Escolar</p>
         
         <div class=""status-grid"">
             <div class=""status-item"">
-                <div class=""status-label"">Servidor gRPC</div>
+                <div class=""status-label"">Servidor REST</div>
                 <div class=""status-value"">
                     <span class=""status-indicator""></span> Activo
                 </div>
@@ -257,8 +314,8 @@ app.MapGet("/", async (context) =>
                 <div class=""status-value"">.NET 10.0</div>
             </div>
             <div class=""status-item"">
-                <div class=""status-label"">gRPC-Web Bridge</div>
-                <div class=""status-value"">Habilitado</div>
+                <div class=""status-label"">Autenticación</div>
+                <div class=""status-value"">JWT Bearer</div>
             </div>
             <div class=""status-item"">
                 <div class=""status-label"">Base de Datos</div>
@@ -268,21 +325,20 @@ app.MapGet("/", async (context) =>
 
         <div class=""services-list"">
             <div class=""services-title"">
-                <i class=""bx bx-git-branch""></i> Servicios gRPC Registrados
+                <i class=""bx bx-git-branch""></i> Controladores REST Activos
             </div>
             <div>
-                <span class=""service-badge"">AuthService</span>
-                <span class=""service-badge"">EncuestaService</span>
-                <span class=""service-badge"">CasosService</span>
-                <span class=""service-badge"">EstudianteService</span>
-                <span class=""service-badge"">DashboardService</span>
-                <span class=""service-badge"">ColegioService</span>
-                <span class=""service-badge"">AdminService</span>
+                <span class=""service-badge"">AuthController</span>
+                <span class=""service-badge"">DashboardController</span>
+                <span class=""service-badge"">CasosController</span>
+                <span class=""service-badge"">EstudianteController</span>
+                <span class=""service-badge"">EncuestaController</span>
+                <span class=""service-badge"">AdminController</span>
             </div>
         </div>
 
-        <a href=""/proto"" target=""_blank"" class=""btn-proto"">
-            <i class=""bx bx-download""></i> Descargar Contrato .proto
+        <a href=""/swagger"" target=""_blank"" class=""btn-proto"">
+            <i class=""bx bx-code-block""></i> Abrir Swagger UI (API Docs)
         </a>
     </div>
 </body>
