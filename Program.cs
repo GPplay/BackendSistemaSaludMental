@@ -5,15 +5,58 @@ using Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Microsoft.Data.SqlClient;
 
 // Registrar soporte de páginas de código (requerido por ExcelDataReader)
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Entity Framework con SQL Server
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Determinar la cadena de conexión y probar conexión con fallback dinámico (para entornos donde el Modo Mixto está desactivado)
+string connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? "Server=.\\SQLEXPRESS;Database=EncuestasSaludMental;User Id=Gybram3;Password=gybram1202;TrustServerCertificate=True;Min Pool Size=5;Max Pool Size=100;Connection Timeout=30;";
+
+bool useWindowsAuthFallback = false;
+
+// El Fallback de Autenticación de Windows sólo aplica cuando se ejecuta sobre Windows (evitando romper Linux / Docker)
+if (OperatingSystem.IsWindows())
+{
+    try
+    {
+        using (var conn = new SqlConnection(connectionString))
+        {
+            conn.Open();
+        }
+    }
+    catch (SqlException ex) when (ex.Number == 18456 || ex.Number == 18452 || ex.Number == 233)
+    {
+        Console.WriteLine($"[INFO] La autenticación de SQL Server falló en Windows (Error {ex.Number}: {ex.Message}). Usando Fallback de Autenticación de Windows (Trusted_Connection=True).");
+        useWindowsAuthFallback = true;
+    }
+    catch (Exception)
+    {
+        // Se deja para que lo intente resolver EF Core con reintentos
+    }
+
+    if (useWindowsAuthFallback)
+    {
+        var builderConn = new SqlConnectionStringBuilder(connectionString);
+        builderConn.IntegratedSecurity = true;
+        builderConn.Remove("User Id");
+        builderConn.Remove("Password");
+        connectionString = builderConn.ConnectionString;
+    }
+}
+
+// Configurar Entity Framework con SQL Server utilizando DbContext Pool (Optimización de tipo Singleton/Pool)
+builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString, sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(3),
+            errorNumbersToAdd: null);
+    }));
 
 // Configurar Controladores REST
 builder.Services.AddControllers();
@@ -89,7 +132,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Asegurar la creación de la base de datos y la inserción de datos iniciales con reintentos para soportar el arranque lento en Docker
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -98,8 +140,36 @@ using (var scope = app.Services.CreateScope())
     {
         try
         {
-            dbContext.Database.EnsureCreated();
+            dbContext.Database.Migrate();
             break;
+        }
+        catch (SqlException ex) when (ex.Number == 2714 || ex.Message.Contains("already an object named"))
+        {
+            Console.WriteLine("[INFO] Las tablas de la base de datos ya existen en SQL Server. Registrando migración inicial en __EFMigrationsHistory.");
+            try
+            {
+                string seedHistorySql = @"
+                    IF OBJECT_ID('__EFMigrationsHistory', 'U') IS NULL
+                    BEGIN
+                        CREATE TABLE [__EFMigrationsHistory] (
+                            [MigrationId] nvarchar(150) NOT NULL,
+                            [ProductVersion] nvarchar(32) NOT NULL,
+                            CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
+                        );
+                    END
+                    IF NOT EXISTS (SELECT * FROM [__EFMigrationsHistory] WHERE [MigrationId] = N'20260731232352_InitialCreate')
+                    BEGIN
+                        INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+                        VALUES (N'20260731232352_InitialCreate', N'10.0.0');
+                    END";
+                dbContext.Database.ExecuteSqlRaw(seedHistorySql);
+                break;
+            }
+            catch (Exception innerEx)
+            {
+                Console.WriteLine($"[WARNING] No se pudo registrar el historial de migraciones: {innerEx.Message}");
+                break;
+            }
         }
         catch (Exception ex)
         {

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
 using Backend.Models;
+using Backend.Services;
 
 namespace Backend.Controllers
 {
@@ -25,8 +26,8 @@ namespace Backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCursos([FromQuery] int? colegioId)
         {
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
-            var userColegioIdClaim = User.FindFirst("ColegioId")?.Value;
+            var roleClaim = ClaimHelper.GetRole(User);
+            var userColegioIdClaim = ClaimHelper.GetColegioId(User);
 
             int targetColegioId = 1;
             if (roleClaim == "SUPER_ADMIN")
@@ -76,8 +77,8 @@ namespace Backend.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateCurso([FromBody] CreateCursoDto dto)
         {
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
-            var userColegioIdClaim = User.FindFirst("ColegioId")?.Value;
+            var roleClaim = ClaimHelper.GetRole(User);
+            var userColegioIdClaim = ClaimHelper.GetColegioId(User);
 
             if (roleClaim != "SUPER_ADMIN" && roleClaim != "Rector")
             {

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Backend.Data;
+using Backend.Services;
 
 namespace Backend.Controllers
 {
@@ -22,9 +23,9 @@ namespace Backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetDashboard()
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
-            var colegioIdClaim = User.FindFirst("ColegioId")?.Value;
+            var userIdClaim = ClaimHelper.GetUserId(User);
+            var roleClaim = ClaimHelper.GetRole(User);
+            var colegioIdClaim = ClaimHelper.GetColegioId(User);
 
             if (userIdClaim == null || roleClaim == null || colegioIdClaim == null)
             {

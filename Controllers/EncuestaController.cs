@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
 using Backend.Models;
+using Backend.Services;
 
 namespace Backend.Controllers
 {
@@ -26,7 +27,7 @@ namespace Backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetSurveys()
         {
-            var colegioIdClaim = User.FindFirst("ColegioId")?.Value;
+            var colegioIdClaim = ClaimHelper.GetColegioId(User);
             if (colegioIdClaim == null)
             {
                 return Unauthorized(new { success = false, message = "Token JWT inválido o incompleto." });
@@ -95,8 +96,8 @@ namespace Backend.Controllers
         [HttpPost("submit")]
         public async Task<IActionResult> SubmitSurveyResponse([FromBody] SubmitResponseDto dto)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var userIdClaim = ClaimHelper.GetUserId(User);
+            var roleClaim = ClaimHelper.GetRole(User);
 
             if (userIdClaim == null || roleClaim == null)
             {
@@ -148,14 +149,14 @@ namespace Backend.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateSurvey([FromBody] CreateSurveyDto dto)
         {
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var roleClaim = ClaimHelper.GetRole(User);
             if (roleClaim == "SUPER_ADMIN")
             {
                 return Forbid("El SUPER_ADMIN no tiene permitido crear encuestas para garantizar la transparencia de los datos.");
             }
 
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var colegioIdClaim = User.FindFirst("ColegioId")?.Value;
+            var userIdClaim = ClaimHelper.GetUserId(User);
+            var colegioIdClaim = ClaimHelper.GetColegioId(User);
 
             if (userIdClaim == null || colegioIdClaim == null)
             {

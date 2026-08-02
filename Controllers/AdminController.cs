@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
 using Backend.Models;
+using Backend.Services;
 
 namespace Backend.Controllers
 {
@@ -26,7 +27,7 @@ namespace Backend.Controllers
         [HttpGet("colegios")]
         public async Task<IActionResult> GetColegios()
         {
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var roleClaim = ClaimHelper.GetRole(User);
             if (roleClaim != "SUPER_ADMIN")
             {
                 return Forbid("Solo el SUPER_ADMIN tiene acceso a la administración global de colegios.");
@@ -62,7 +63,7 @@ namespace Backend.Controllers
         [HttpPost("colegios")]
         public async Task<IActionResult> CreateColegio([FromBody] CreateColegioDto dto)
         {
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var roleClaim = ClaimHelper.GetRole(User);
             if (roleClaim != "SUPER_ADMIN")
             {
                 return Forbid("Solo el SUPER_ADMIN tiene acceso a crear colegios.");
@@ -102,7 +103,7 @@ namespace Backend.Controllers
         [HttpGet("usuarios")]
         public async Task<IActionResult> GetAllUsers([FromQuery] int? colegioIdFilter)
         {
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var roleClaim = ClaimHelper.GetRole(User);
             if (roleClaim != "SUPER_ADMIN")
             {
                 return Forbid("Solo el SUPER_ADMIN puede consultar todos los usuarios de la plataforma.");
@@ -140,7 +141,7 @@ namespace Backend.Controllers
         [HttpPost("usuarios/{id}/reset-password")]
         public async Task<IActionResult> ResetUserPassword(int id, [FromBody] ResetPasswordDto dto)
         {
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var roleClaim = ClaimHelper.GetRole(User);
             if (roleClaim != "SUPER_ADMIN")
             {
                 return Forbid("Solo el SUPER_ADMIN puede restablecer contraseñas globales.");
@@ -166,7 +167,7 @@ namespace Backend.Controllers
         [HttpPut("perfil")]
         public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateProfileDto dto)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdClaim = ClaimHelper.GetUserId(User);
             if (userIdClaim == null)
             {
                 return Unauthorized(new { success = false, message = "Token JWT inválido o incompleto." });
@@ -213,7 +214,7 @@ namespace Backend.Controllers
         [HttpPut("colegios/{id}")]
         public async Task<IActionResult> UpdateColegio(int id, [FromBody] UpdateColegioDto dto)
         {
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var roleClaim = ClaimHelper.GetRole(User);
             if (roleClaim != "SUPER_ADMIN")
             {
                 return Forbid("Solo el SUPER_ADMIN puede actualizar la información de colegios.");
@@ -241,7 +242,7 @@ namespace Backend.Controllers
         [HttpGet("estudiantes-global")]
         public async Task<IActionResult> GetGlobalEstudiantes([FromQuery] int? colegioId, [FromQuery] string? curso)
         {
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var roleClaim = ClaimHelper.GetRole(User);
             if (roleClaim != "SUPER_ADMIN")
             {
                 return Forbid("Solo el SUPER_ADMIN puede consultar el listado global de estudiantes.");
@@ -288,7 +289,7 @@ namespace Backend.Controllers
         [HttpPut("estudiantes/{id}")]
         public async Task<IActionResult> UpdateEstudiante(int id, [FromBody] UpdateEstudianteDto dto)
         {
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var roleClaim = ClaimHelper.GetRole(User);
             if (roleClaim != "SUPER_ADMIN")
             {
                 return Forbid("Solo el SUPER_ADMIN puede actualizar estudiantes de forma global.");

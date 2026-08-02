@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using ExcelDataReader;
 using Backend.Data;
 using Backend.Models;
+using Backend.Services;
 
 namespace Backend.Controllers
 {
@@ -29,7 +30,7 @@ namespace Backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetEstudiantes([FromQuery] string? jornada, [FromQuery] string? curso)
         {
-            var colegioIdClaim = User.FindFirst("ColegioId")?.Value;
+            var colegioIdClaim = ClaimHelper.GetColegioId(User);
             if (colegioIdClaim == null)
             {
                 return Unauthorized(new { success = false, message = "Token JWT inválido o incompleto." });
@@ -78,7 +79,7 @@ namespace Backend.Controllers
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadEstudiantesExcel(IFormFile file)
         {
-            var colegioIdClaim = User.FindFirst("ColegioId")?.Value;
+            var colegioIdClaim = ClaimHelper.GetColegioId(User);
             if (colegioIdClaim == null)
             {
                 return Unauthorized(new { success = false, message = "Token JWT inválido o incompleto." });

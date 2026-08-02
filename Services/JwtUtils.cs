@@ -23,6 +23,9 @@ namespace Backend.Services
                     new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                     new Claim(ClaimTypes.Name, username),
                     new Claim(ClaimTypes.Role, role),
+                    new Claim("sub", userId.ToString()),
+                    new Claim("unique_name", username),
+                    new Claim("role", role),
                     new Claim("ColegioId", colegioId.ToString())
                 }),
                 Expires = DateTime.UtcNow.AddDays(7),

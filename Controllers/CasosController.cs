@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
 using Backend.Models;
+using Backend.Services;
 
 namespace Backend.Controllers
 {
@@ -25,8 +26,8 @@ namespace Backend.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateCaso([FromBody] CreateCasoDto dto)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var colegioIdClaim = User.FindFirst("ColegioId")?.Value;
+            var userIdClaim = ClaimHelper.GetUserId(User);
+            var colegioIdClaim = ClaimHelper.GetColegioId(User);
 
             if (userIdClaim == null || colegioIdClaim == null)
             {
@@ -71,9 +72,9 @@ namespace Backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCasos()
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
-            var colegioIdClaim = User.FindFirst("ColegioId")?.Value;
+            var userIdClaim = ClaimHelper.GetUserId(User);
+            var roleClaim = ClaimHelper.GetRole(User);
+            var colegioIdClaim = ClaimHelper.GetColegioId(User);
 
             if (userIdClaim == null || roleClaim == null || colegioIdClaim == null)
             {
