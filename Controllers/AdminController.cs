@@ -163,6 +163,100 @@ namespace Backend.Controllers
             });
         }
 
+        [HttpPost("usuarios-colegio")]
+        public async Task<IActionResult> CreateUsuarioColegio([FromBody] CreateUsuarioColegioDto dto)
+        {
+            var roleClaim = ClaimHelper.GetRole(User);
+            var colegioIdClaim = ClaimHelper.GetColegioId(User);
+
+            if (roleClaim != "SUPER_ADMIN" && roleClaim != "Rector")
+            {
+                return Forbid("Solo el Rector de la institución o el SuperAdmin pueden registrar nuevos funcionarios o psicólogos.");
+            }
+
+            int targetColegioId = 1;
+            if (roleClaim == "Rector")
+            {
+                if (colegioIdClaim == null)
+                {
+                    return Unauthorized(new { success = false, message = "Token de Rector sin identificación de colegio." });
+                }
+                targetColegioId = int.Parse(colegioIdClaim);
+            }
+            else if (roleClaim == "SUPER_ADMIN")
+            {
+                if (dto.ColegioId.HasValue && dto.ColegioId.Value > 0)
+                {
+                    targetColegioId = dto.ColegioId.Value;
+                }
+                else if (colegioIdClaim != null)
+                {
+                    targetColegioId = int.Parse(colegioIdClaim);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.Nombre) || string.IsNullOrWhiteSpace(dto.NumeroIdentificacion))
+            {
+                return BadRequest(new { success = false, message = "Nombre y número de identificación son obligatorios." });
+            }
+
+            string numDoc = dto.NumeroIdentificacion.Trim();
+            string username = numDoc;
+
+            bool existe = await _dbContext.Usuarios.AnyAsync(u => u.NumeroIdentificacion == numDoc || u.Username == username);
+            if (existe)
+            {
+                return BadRequest(new { success = false, message = $"Ya existe un usuario registrado con el documento '{numDoc}'." });
+            }
+
+            using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                var persona = new Persona
+                {
+                    Nombre = dto.Nombre.Trim(),
+                    Apellido = dto.Apellido?.Trim() ?? "",
+                    TipoIdentificacion = string.IsNullOrWhiteSpace(dto.TipoIdentificacion) ? "CC" : dto.TipoIdentificacion.Trim(),
+                    NumeroIdentificacion = numDoc,
+                    Email = !string.IsNullOrWhiteSpace(dto.Email) ? dto.Email.Trim() : $"{numDoc}@funcionario.siae.edu.co",
+                    Telefono = dto.Telefono?.Trim() ?? "",
+                    Sexo = "No especificado",
+                    Direccion = "No registrada",
+                    FechaNacimiento = DateTime.UtcNow.AddYears(-30),
+                    LugarNacimiento = "No registrado"
+                };
+
+                _dbContext.Personas.Add(persona);
+                await _dbContext.SaveChangesAsync();
+
+                var usuario = new Usuario
+                {
+                    ColegioId = targetColegioId,
+                    PersonaId = persona.Id,
+                    Username = username,
+                    PasswordHash = PasswordHasher.HashPassword(numDoc),
+                    Rol = string.IsNullOrWhiteSpace(dto.Rol) ? "Orientador" : dto.Rol.Trim(),
+                    Jornada = string.IsNullOrWhiteSpace(dto.Jornada) ? "Mañana" : dto.Jornada.Trim()
+                };
+
+                _dbContext.Usuarios.Add(usuario);
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Usuario ({usuario.Rol}) '{persona.Nombre} {persona.Apellido}' creado exitosamente para la institución.",
+                    usuarioId = usuario.Id
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new { success = false, message = $"Error al registrar usuario: {ex.Message}" });
+            }
+        }
+
         // --- ACTUALIZACIÓN DE PERFIL (Cualquier usuario autenticado) ---
         [HttpPut("perfil")]
         public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateProfileDto dto)

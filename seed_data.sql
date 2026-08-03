@@ -99,7 +99,7 @@ BEGIN
 
     IF NOT EXISTS (SELECT * FROM Usuarios WHERE Id = 3)
         INSERT INTO Usuarios (Id, ColegioId, PersonaId, Username, PasswordHash, Rol, Jornada)
-        VALUES (3, 1, 3, 'coordinador', 'coordinador123', 'Carlos', 'Coordinador', 'Tarde');
+        VALUES (3, 1, 3, 'coordinador', 'coordinador123', 'Coordinador', 'Tarde');
 
     IF NOT EXISTS (SELECT * FROM Usuarios WHERE Id = 4)
         INSERT INTO Usuarios (Id, ColegioId, PersonaId, Username, PasswordHash, Rol, Jornada)

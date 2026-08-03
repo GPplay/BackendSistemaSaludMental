@@ -114,6 +114,10 @@ namespace Backend.Models
         public int CreadoPorUsuarioId { get; set; }
         public Usuario CreadoPorUsuario { get; set; } = null!;
         public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+        public string TipoAsignacion { get; set; } = "Global"; // Global, Curso, Estudiante
+        public string? CursoAsignado { get; set; }
+        public int? EstudianteAsignadoId { get; set; }
+        public Estudiante? EstudianteAsignado { get; set; }
         public List<Pregunta> Preguntas { get; set; } = new();
     }
 
@@ -156,5 +160,37 @@ namespace Backend.Models
         public string RespuestaTexto { get; set; } = string.Empty;
         public int? OpcionSeleccionadaId { get; set; }
         public Opcion? OpcionSeleccionada { get; set; }
+    }
+
+    public class CreateUsuarioColegioDto
+    {
+        public string Nombre { get; set; } = string.Empty;
+        public string Apellido { get; set; } = string.Empty;
+        public string TipoIdentificacion { get; set; } = "CC";
+        public string NumeroIdentificacion { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Telefono { get; set; } = string.Empty;
+        public string Rol { get; set; } = "Orientador"; // Orientador, Psicologo, TrabajadorSocial, Coordinador, Docente
+        public string Jornada { get; set; } = "Mañana";
+        public int? ColegioId { get; set; }
+    }
+
+    public class CreateEstudianteIndividualDto
+    {
+        public string Nombre { get; set; } = string.Empty;
+        public string Apellido { get; set; } = string.Empty;
+        public string TipoIdentificacion { get; set; } = "TI";
+        public string NumeroIdentificacion { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Telefono { get; set; } = string.Empty;
+        public string Sexo { get; set; } = "Masculino";
+        public string Direccion { get; set; } = string.Empty;
+        public string FechaNacimiento { get; set; } = string.Empty;
+        public string Curso { get; set; } = string.Empty;
+        public string Jornada { get; set; } = "Mañana";
+        public string Eps { get; set; } = "Sin Asignar";
+        public string NombreAcudiente { get; set; } = string.Empty;
+        public string TelefonoAcudiente { get; set; } = string.Empty;
+        public string ParentescoAcudiente { get; set; } = "Acudiente Legal";
     }
 }

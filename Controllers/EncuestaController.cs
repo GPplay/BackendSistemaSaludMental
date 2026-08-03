@@ -34,10 +34,26 @@ namespace Backend.Controllers
             }
 
             int colegioId = int.Parse(colegioIdClaim);
+            var roleClaim = ClaimHelper.GetRole(User);
+            var userIdClaim = ClaimHelper.GetUserId(User);
 
-            var encuestas = await _dbContext.Encuestas
-                .Where(e => e.ColegioId == colegioId)
-                .ToListAsync();
+            IQueryable<Encuesta> query = _dbContext.Encuestas
+                .Where(e => e.ColegioId == colegioId);
+
+            if (roleClaim == "Estudiante" && userIdClaim != null)
+            {
+                int userId = int.Parse(userIdClaim);
+                var est = await _dbContext.Estudiantes.FirstOrDefaultAsync(e => e.UsuarioId == userId && e.ColegioId == colegioId);
+                if (est != null)
+                {
+                    query = query.Where(e => e.TipoAsignacion == "Global" ||
+                                             string.IsNullOrEmpty(e.TipoAsignacion) ||
+                                             (e.TipoAsignacion == "Curso" && e.CursoAsignado == est.Curso) ||
+                                             (e.TipoAsignacion == "Estudiante" && e.EstudianteAsignadoId == est.Id));
+                }
+            }
+
+            var encuestas = await query.ToListAsync();
 
             var result = new List<object>();
             foreach (var e in encuestas)
@@ -49,6 +65,9 @@ namespace Backend.Controllers
                     titulo = e.Titulo,
                     descripcion = e.Descripcion,
                     fechaCreacion = e.FechaCreacion.ToString("yyyy-MM-dd HH:mm:ss"),
+                    tipoAsignacion = e.TipoAsignacion ?? "Global",
+                    cursoAsignado = e.CursoAsignado ?? "",
+                    estudianteAsignadoId = e.EstudianteAsignadoId,
                     totalRespuestas = totalResp
                 });
             }
@@ -175,7 +194,10 @@ namespace Backend.Controllers
                     Titulo = dto.Titulo,
                     Descripcion = dto.Descripcion,
                     CreadoPorUsuarioId = userId,
-                    FechaCreacion = DateTime.UtcNow
+                    FechaCreacion = DateTime.UtcNow,
+                    TipoAsignacion = string.IsNullOrWhiteSpace(dto.TipoAsignacion) ? "Global" : dto.TipoAsignacion,
+                    CursoAsignado = dto.CursoAsignado,
+                    EstudianteAsignadoId = dto.EstudianteAsignadoId
                 };
 
                 _dbContext.Encuestas.Add(encuesta);
@@ -323,6 +345,9 @@ namespace Backend.Controllers
     {
         public string Titulo { get; set; } = string.Empty;
         public string Descripcion { get; set; } = string.Empty;
+        public string TipoAsignacion { get; set; } = "Global"; // Global, Curso, Estudiante
+        public string? CursoAsignado { get; set; }
+        public int? EstudianteAsignadoId { get; set; }
         public List<CreatePreguntaDto> Preguntas { get; set; } = new();
     }
 
